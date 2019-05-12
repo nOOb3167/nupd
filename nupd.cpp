@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -20,17 +21,33 @@ template<typename T, typename U>
 class ItPair
 {
 public:
+	constexpr static bool IsConst = std::is_const<T>::value && std::is_const<U>::value;
+
 	class It
 	{
 	public:
 		using valtyp = std::tuple<const typename T::value_type &, const typename U::value_type &>;
+		using itatyp = typename std::conditional<IsConst, typename T::const_iterator, typename T::iterator>::type;
+		using itbtyp = typename std::conditional<IsConst, typename U::const_iterator, typename U::iterator>::type;
 
-		It(typename T::iterator &ia, typename U::iterator &ib) : m_tup(std::make_tuple(ia, ib)) {}
-		std::tuple<typename T::iterator, typename U::iterator> m_tup;
+		It(itatyp &ia, itbtyp &ib) : m_tup(std::make_tuple(ia, ib)) {}
+		std::tuple<itatyp, itbtyp> m_tup;
 		It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
 		bool operator!=(const It &other) const { return m_tup != other.m_tup; }
 		const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
 	};
+
+	//class It
+	//{
+	//public:
+	//	using valtyp = std::tuple<const typename T::value_type &, const typename U::value_type &>;
+
+	//	It(typename T::iterator &ia, typename U::iterator &ib) : m_tup(std::make_tuple(ia, ib)) {}
+	//	std::tuple<typename T::iterator, typename U::iterator> m_tup;
+	//	It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
+	//	bool operator!=(const It &other) const { return m_tup != other.m_tup; }
+	//	const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
+	//};
 
 	ItPair(T &a, U &b) : m_a(a), m_b(b)
 	{
@@ -164,20 +181,20 @@ _tmp_move_tempname(const boost::filesystem::path &src, const boost::filesystem::
 inline void
 _del_last_if_file(const boost::filesystem::path &path)
 {
-	for (auto &cano = boost::filesystem::weakly_canonical(path); cano.has_parent_path(); cano = cano.parent_path()) {
-		if (boost::filesystem::is_regular_file(cano)) {
-			boost::filesystem::remove(cano);
+	for (auto &cano = boost::filesystem::weakly_canonical(path); cano.has_parent_path(); cano = cano.parent_path())
+		if (boost::filesystem::exists(cano)) {
+			if (boost::filesystem::is_regular_file(cano))
+				boost::filesystem::remove(cano);
 			return;
 		}
-	}
 }
 
 inline void
 _tmp_copy_force_makedst(const boost::filesystem::path &src, const boost::filesystem::path &dst_)
 {
-	auto &dst = boost::filesystem::weakly_canonical(dst_);
-	_del_last_if_file(dst);
+	const auto &dst = boost::filesystem::weakly_canonical(dst_);
 	assert(dst.has_parent_path());
+	_del_last_if_file(dst);
 	boost::filesystem::create_directories(dst.parent_path());
 	if (boost::filesystem::exists(dst))
 		boost::filesystem::rename(dst, boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(ps_uniq_path_pattern));
@@ -193,12 +210,13 @@ _tmp_fakedl(
 	const std::vector<ps_sha_t> &aux_sums)
 {
 	std::map<ps_sha_t, boost::filesystem::path> dsf;
-	assert(aux_fils.size() == aux_sums.size());
-	for (size_t i = 0; i < aux_fils.size(); i++)
-		dsf[aux_sums[i]] = aux_fils[i];
+	for (const auto &[k, v] : ItPair(aux_fils, aux_sums))
+		dsf[v] = k;
+
 	std::vector<boost::filesystem::path> fils;
-	for (size_t i = 0; i < dlsha.size(); i++)
-		fils.push_back(std::get<1>(_tmp_copy_tempname(srcroot / dsf.at(dlsha[i]), dstroot)));
+	for (const auto &v : dlsha)
+		fils.push_back(std::get<1>(_tmp_copy_tempname(srcroot / dsf.at(v), dstroot)));
+
 	return std::make_tuple(fils, dlsha);
 }
 
@@ -209,7 +227,7 @@ main(int argc, char **argv)
 	boost::filesystem::path tmpd = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(ps_uniq_path_pattern);
 	boost::filesystem::create_directory(tmpd);
 
-	auto &[goal_fils, goal_sums] = _dir_checksum(PATH_RSYNC);
+	const auto &[goal_fils, goal_sums] = _dir_checksum(PATH_RSYNC);
 	auto &[beg_fils, beg_sums] = _dir_checksum(tmpd);
 
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
@@ -231,9 +249,8 @@ main(int argc, char **argv)
 		NupdD::xform_AB_AN__XX_NB(dd[k], dd[rel]);
 
 	std::map<ps_sha_t, boost::filesystem::path> dsf;
-	assert(beg_sums.size() == beg_fils.size());
-	for (size_t i = 0; i < beg_sums.size(); i++)
-		dsf[beg_sums[i]] = beg_fils[i];
+	for (const auto &[k, v] : ItPair(beg_fils, beg_sums))
+		dsf[v] = k;
 
 	std::vector<boost::filesystem::path> work2;
 	for (const auto &[k, v] : dd)
@@ -244,7 +261,7 @@ main(int argc, char **argv)
 	for (const auto &k : work2)
 		NupdD::xform_AN_AA(dd.at(k));
 
-	for (auto &[k, v] : ItPair(goal_fils, goal_sums))
+	for (const auto &[k, v] : ItPair(goal_fils, goal_sums))
 		assert(_fname_checksum(tmpd / k) == v);
 
 	return EXIT_SUCCESS;
