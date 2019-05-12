@@ -1,3 +1,6 @@
+#define BOOST_TEST_MODULE nupd
+#include <boost/test/included/unit_test.hpp>
+
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
@@ -211,8 +214,8 @@ _tmp_fakedl(
 	return std::make_tuple(fils, dlsha);
 }
 
-int
-main(int argc, char **argv)
+inline int
+_main(int argc, char **argv)
 {
 	boost::filesystem::path PATH_RSYNC = boost::filesystem::canonical(boost::filesystem::path("."));
 	boost::filesystem::path tmpd = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(ps_uniq_path_pattern);
@@ -256,4 +259,9 @@ main(int argc, char **argv)
 		assert(_fname_checksum(tmpd / k) == v);
 
 	return EXIT_SUCCESS;
+}
+
+BOOST_AUTO_TEST_CASE(nupd_main)
+{
+	_main(0, nullptr);
 }
