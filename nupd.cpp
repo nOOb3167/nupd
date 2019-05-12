@@ -21,7 +21,7 @@ template<typename T, typename U>
 class ItPair
 {
 public:
-	constexpr static bool IsConst = std::is_const<T>::value && std::is_const<U>::value;
+	inline constexpr static bool IsConst = std::is_const<T>::value && std::is_const<U>::value;
 
 	class It
 	{
@@ -30,37 +30,28 @@ public:
 		using itatyp = typename std::conditional<IsConst, typename T::const_iterator, typename T::iterator>::type;
 		using itbtyp = typename std::conditional<IsConst, typename U::const_iterator, typename U::iterator>::type;
 
-		It(itatyp &ia, itbtyp &ib) : m_tup(std::make_tuple(ia, ib)) {}
+		inline It(itatyp &ia, itbtyp &ib) : m_tup(std::make_tuple(ia, ib)) {}
+		inline It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
+		inline bool operator!=(const It &other) const { return m_tup != other.m_tup; }
+		inline const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
+
 		std::tuple<itatyp, itbtyp> m_tup;
-		It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
-		bool operator!=(const It &other) const { return m_tup != other.m_tup; }
-		const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
 	};
 
-	//class It
-	//{
-	//public:
-	//	using valtyp = std::tuple<const typename T::value_type &, const typename U::value_type &>;
-
-	//	It(typename T::iterator &ia, typename U::iterator &ib) : m_tup(std::make_tuple(ia, ib)) {}
-	//	std::tuple<typename T::iterator, typename U::iterator> m_tup;
-	//	It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
-	//	bool operator!=(const It &other) const { return m_tup != other.m_tup; }
-	//	const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
-	//};
-
-	ItPair(T &a, U &b) : m_a(a), m_b(b)
+	inline ItPair(T &a, U &b) : m_a(a), m_b(b)
 	{
 		if (a.size() != b.size())
 			throw std::out_of_range("");
 	}
 
-	It begin() const
+	inline It
+	begin() const
 	{
 		return It(m_a.begin(), m_b.begin());
 	}
 
-	It end() const
+	inline It
+	end() const
 	{
 		return It(m_a.end(), m_b.end());
 	}
@@ -74,9 +65,9 @@ class NupdD
 public:
 	using dd_t = std::map<boost::filesystem::path, NupdD>;
 
-	NupdD(const ps_sha_t &a, const ps_sha_t &b) : m_a(a), m_b(b) {}
-	NupdD() = default;
-	NupdD(const NupdD &) = default;
+	inline NupdD(const ps_sha_t &a, const ps_sha_t &b) : m_a(a), m_b(b) {}
+	inline NupdD() = default;
+	inline NupdD(const NupdD &) = default;
 
 	inline static dd_t mk(
 		const std::vector<boost::filesystem::path> &beg_fils,
