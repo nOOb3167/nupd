@@ -7,6 +7,7 @@
 #include <istream>
 #include <map>
 #include <set>
+#include <sstream>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -16,6 +17,8 @@
 
 // boost::filesystem::{weakly_}canonical : weakly does not require existance
 
+using fpt_t = std::tuple<boost::filesystem::path, std::string>;
+using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
 using ps_sha_t = std::string;
 
 const char ps_uniq_path_pattern[] = "pstmp%%%%-%%%%-%%%%-%%%%";
@@ -261,7 +264,98 @@ _main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
+BOOST_AUTO_TEST_SUITE(nupd_suite);
+
 BOOST_AUTO_TEST_CASE(nupd_main)
 {
 	_main(0, nullptr);
 }
+
+class TmpDirX
+{
+public:
+	inline TmpDirX() :
+		m_d(boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(ps_uniq_path_pattern))
+	{
+		boost::filesystem::create_directories(m_d);
+	}
+
+	~TmpDirX()
+	{
+		if (boost::filesystem::is_directory(m_d))
+			boost::filesystem::remove_all(m_d);
+	}
+
+	boost::filesystem::path m_d;
+};
+
+class TmpDirFixture
+{
+public:
+	inline TmpDirFixture(const fpt3_t &fpt) :
+		TmpDirFixture(std::get<0>(fpt), std::get<1>(fpt), std::get<2>(fpt))
+	{}
+
+	inline TmpDirFixture(
+		const std::vector<fpt_t> &fpt_our,
+		const std::vector<fpt_t> &fpt_the,
+		const std::vector<fpt_t> &fpt_fin
+	) :
+		m_tmpd_our(),
+		m_tmpd_the(),
+		m_fpt_our(fpt_our),
+		m_fpt_the(fpt_the),
+		m_fpt_fin(fpt_fin)
+	{
+		_filldir(m_tmpd_our.m_d, fpt_our);
+		_filldir(m_tmpd_the.m_d, fpt_the);
+	}
+
+	inline virtual ~TmpDirFixture()
+	{
+		for (const auto &[k, v] : m_fpt_fin)
+			BOOST_REQUIRE(_readfile(m_tmpd_our.m_d / k) == v);
+	}
+
+	inline static void
+	_filldir(const boost::filesystem::path &tmpd, const std::vector<fpt_t> &fpt)
+	{
+		for (auto &[k, v] : fpt) {
+			BOOST_REQUIRE(k.is_relative() && k == k.lexically_normal() && (tmpd / k).has_parent_path());
+			boost::filesystem::create_directories((tmpd / k).parent_path());
+			if (!boost::filesystem::ofstream((tmpd / k), std::ios_base::out | std::ios_base::binary).write(v.data(), v.size()).good())
+				throw std::runtime_error("");
+		}
+	}
+
+	inline static std::string
+	_readfile(const boost::filesystem::path &path)
+	{
+		std::stringstream buf;
+		buf << boost::filesystem::ifstream(path, std::ios_base::in | std::ios_base::binary).rdbuf();
+		return buf.str();
+	}
+
+	TmpDirX m_tmpd_our;
+	TmpDirX m_tmpd_the;
+	std::vector<fpt_t> m_fpt_our;
+	std::vector<fpt_t> m_fpt_the;
+	std::vector<fpt_t> m_fpt_fin;
+};
+
+BOOST_AUTO_TEST_CASE(n1)
+{
+	TmpDirFixture w(
+		{
+			{boost::filesystem::path("abcd.txt"), "abcd"}
+		},
+		{
+			{boost::filesystem::path("abcd.txt"), "abcd"}
+		},
+		{
+			{boost::filesystem::path("abcd.txt"), "abcd"}
+		}
+	);
+}
+
+BOOST_AUTO_TEST_SUITE_END();
