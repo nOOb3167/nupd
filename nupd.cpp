@@ -334,18 +334,52 @@ public:
 
 BOOST_AUTO_TEST_SUITE(nupd_suite);
 
-BOOST_AUTO_TEST_CASE(nupd_main)
+BOOST_AUTO_TEST_CASE(nupd_main0)
 {
 	TmpDirFixture w(
-		{
-			{boost::filesystem::path("abcd.txt"), "abcd"}
-		},
-		{
-			{boost::filesystem::path("abcd.txt"), "abcd"}
-		},
-		{
-			{boost::filesystem::path("abcd.txt"), "abcd"}
-		}
+		{ {"a.txt", "a"} },
+		{ {"a.txt", "a"} },
+		{ {"a.txt", "a"} }
+	);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+}
+
+BOOST_AUTO_TEST_CASE(nupd_main1)
+{
+	TmpDirFixture w(
+		{},
+		{ {"a.txt", "a"} },
+		{ {"a.txt", "a"} }
+	);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+}
+
+BOOST_AUTO_TEST_CASE(nupd_main2)
+{
+	TmpDirFixture w(
+		{ {"a.txt", "a"} },
+		{ {"a.txt", "b"} },
+		{ {"a.txt", "b"} }
+	);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+}
+
+BOOST_AUTO_TEST_CASE(nupd_main3)
+{
+	TmpDirFixture w(
+		{ {"a0.txt", "c"}, {"a1.txt", "c"} },
+		{ {"a.txt", "b"} },
+		{ {"a.txt", "b"}, {"a1.txt", "c" } }
+	);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+}
+
+BOOST_AUTO_TEST_CASE(nupd_main4)
+{
+	TmpDirFixture w(
+		{ {"a0.txt", "c"} },
+		{ {"a.txt", "b"}, {"b.txt", "c"} },
+		{ {"a0.txt", "c"}, {"a.txt", "b"}, {"b.txt", "c"} }
 	);
 	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
 }
