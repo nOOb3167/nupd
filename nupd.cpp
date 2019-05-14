@@ -218,19 +218,15 @@ _tmp_fakedl(
 }
 
 inline int
-_main(int argc, char **argv)
+_main(const boost::filesystem::path &ourroot, const boost::filesystem::path &theroot)
 {
-	boost::filesystem::path PATH_RSYNC = boost::filesystem::canonical(boost::filesystem::path("."));
-	boost::filesystem::path tmpd = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(ps_uniq_path_pattern);
-	boost::filesystem::create_directory(tmpd);
-
-	const auto &[goal_fils, goal_sums] = _dir_checksum(PATH_RSYNC);
-	auto &[beg_fils, beg_sums] = _dir_checksum(tmpd);
+	const auto &[goal_fils, goal_sums] = _dir_checksum(theroot);
+	auto &[beg_fils, beg_sums] = _dir_checksum(ourroot);
 
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
 
 	if (miss_sums.size()) {
-		auto &[dl_fils, dl_sums] = _tmp_fakedl(PATH_RSYNC, tmpd, miss_sums, goal_fils, goal_sums);
+		auto &[dl_fils, dl_sums] = _tmp_fakedl(theroot, ourroot, miss_sums, goal_fils, goal_sums);
 		std::copy(dl_fils.begin(), dl_fils.end(), std::back_inserter(beg_fils));
 		std::copy(dl_sums.begin(), dl_sums.end(), std::back_inserter(beg_sums));
 	}
@@ -241,7 +237,7 @@ _main(int argc, char **argv)
 
 	for (const auto &[k, v] : dd)
 		if (v.m_a.size() && v.m_b.size() && v.m_a != v.m_b)
-			work.push_back(std::make_tuple(k, std::get<1>(_tmp_move_tempname(tmpd / k, tmpd))));
+			work.push_back(std::make_tuple(k, std::get<1>(_tmp_move_tempname(ourroot / k, ourroot))));
 	for (const auto &[k, rel] : work)
 		NupdD::xform_AB_AN__XX_NB(dd[k], dd[rel]);
 
@@ -252,23 +248,16 @@ _main(int argc, char **argv)
 	std::vector<boost::filesystem::path> work2;
 	for (const auto &[k, v] : dd)
 		if (v.m_a.size() && !v.m_b.size()) {
-			_tmp_copy_force_makedst(tmpd / dsf.at(v.m_a), tmpd / k);
+			_tmp_copy_force_makedst(ourroot / dsf.at(v.m_a), ourroot / k);
 			work2.push_back(k);
 		}
 	for (const auto &k : work2)
 		NupdD::xform_AN_AA(dd.at(k));
 
 	for (const auto &[k, v] : ItPair(goal_fils, goal_sums))
-		assert(_fname_checksum(tmpd / k) == v);
+		assert(_fname_checksum(ourroot / k) == v);
 
 	return EXIT_SUCCESS;
-}
-
-BOOST_AUTO_TEST_SUITE(nupd_suite);
-
-BOOST_AUTO_TEST_CASE(nupd_main)
-{
-	_main(0, nullptr);
 }
 
 class TmpDirX
@@ -343,7 +332,9 @@ public:
 	std::vector<fpt_t> m_fpt_fin;
 };
 
-BOOST_AUTO_TEST_CASE(n1)
+BOOST_AUTO_TEST_SUITE(nupd_suite);
+
+BOOST_AUTO_TEST_CASE(nupd_main)
 {
 	TmpDirFixture w(
 		{
@@ -356,6 +347,7 @@ BOOST_AUTO_TEST_CASE(n1)
 			{boost::filesystem::path("abcd.txt"), "abcd"}
 		}
 	);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
 }
 
 BOOST_AUTO_TEST_SUITE_END();
