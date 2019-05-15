@@ -1,3 +1,6 @@
+#define BOOST_TEST_MODULE nupd
+#include <boost/test/included/unit_test.hpp>
+
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
@@ -11,12 +14,11 @@
 #include <vector>
 
 #include <hasher.hpp>
-#include <orderedincs.hpp>
+#include <pscon.hpp>
 
-#define BOOST_TEST_MODULE nupd
-#include <boost/test/included/unit_test.hpp>
+#include <boost/filesystem.hpp>
 
-// boost::filesystem::{weakly_}canonical : weakly does not require existance
+// boost::filesystem::{weakly_}canonical : weakly does not require existence
 
 using fpt_t = std::tuple<boost::filesystem::path, std::string>;
 using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
