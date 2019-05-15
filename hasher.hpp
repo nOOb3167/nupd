@@ -1,3 +1,6 @@
+#ifndef _HASHER_HPP_
+#define _HASHER_HPP_
+
 #include <cassert>
 #include <istream>
 #include <memory>
@@ -5,15 +8,7 @@
 #include <string>
 #include <tuple>
 
-// http://kirkshoop.blogspot.com/2011/09/ntstatus.html
-#define WIN32_NO_STATUS
-#include <windows.h>
-#undef WIN32_NO_STATUS
-#include <winternl.h>
-#include <ntstatus.h>
-
-#include <boost/filesystem.hpp>
-//#include <picosha2.h>
+#include <orderedincs.hpp>
 
 using ps_sha_t = std::string;
 using ps_crypt_t = std::tuple<std::shared_ptr<BCRYPT_ALG_HANDLE>, std::shared_ptr<BCRYPT_HASH_HANDLE>, std::shared_ptr<unsigned char>, std::shared_ptr<unsigned char>, size_t>;
@@ -97,7 +92,7 @@ _hhcrypt(const ps_crypt_t &cryp)
 		throw std::runtime_error("");
 }
 
-ps_sha_t
+inline ps_sha_t
 _fname_checksum(const boost::filesystem::path &file)
 {
 	bool pending_end = false;
@@ -112,3 +107,5 @@ _fname_checksum(const boost::filesystem::path &file)
 		throw std::runtime_error("");
 	return _hhfinish(cryp);
 }
+
+#endif /* _HASHER_HPP_ */

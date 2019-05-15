@@ -1,6 +1,3 @@
-#define BOOST_TEST_MODULE nupd
-#include <boost/test/included/unit_test.hpp>
-
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
@@ -13,7 +10,11 @@
 #include <utility>
 #include <vector>
 
-#include <boost/filesystem.hpp>
+#include <hasher.hpp>
+#include <orderedincs.hpp>
+
+#define BOOST_TEST_MODULE nupd
+#include <boost/test/included/unit_test.hpp>
 
 // boost::filesystem::{weakly_}canonical : weakly does not require existance
 
@@ -111,9 +112,6 @@ public:
 };
 
 using nupdd_t = std::map<boost::filesystem::path, NupdD>;
-
-ps_sha_t
-_fname_checksum(const boost::filesystem::path &file);
 
 inline std::vector<boost::filesystem::path>
 _fnames_rec_sorted(const boost::filesystem::path &dirp)
@@ -269,7 +267,7 @@ public:
 		boost::filesystem::create_directories(m_d);
 	}
 
-	~TmpDirX()
+	inline ~TmpDirX()
 	{
 		if (boost::filesystem::is_directory(m_d))
 			boost::filesystem::remove_all(m_d);
