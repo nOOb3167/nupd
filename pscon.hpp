@@ -2,6 +2,7 @@
 #define _PSCON_HPP_
 
 #include <cassert>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -11,6 +12,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/regex.hpp>
 
 using tcp = ::boost::asio::ip::tcp;
 namespace http = ::boost::beast::http;
@@ -35,7 +37,8 @@ class PsCon
 public:
 	inline virtual ~PsCon() {};
 	inline virtual res_t req(const std::string &path, const std::string &data) = 0;
-	
+
+public:
 	ConProgress m_prog;
 };
 
@@ -68,10 +71,16 @@ public:
 		boost::asio::connect(*m_socket, m_resolver_r.begin(), m_resolver_r.end());
 	}
 
+	inline std::string
+	_joinpath(const std::string &rootpath, const std::string &path)
+	{
+		return rootpath + (path.at(0) != '/' ? "/" : "") + path;
+	}
+
 	inline res_t
 	req_(const http::verb &verb, const std::string &path, const std::string &data)
 	{
-		http::request<http::string_body> req(verb, m_host_http_rootpath + path, 11);
+		http::request<http::string_body> req(verb, _joinpath(m_host_http_rootpath, path), 11);
 		req.set(http::field::host, m_host_http);
 		req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 		http::write(*m_socket, req);
@@ -129,7 +138,12 @@ public:
 	req(const std::string &path, const std::string &data) override
 	{
 		m_prog.onRequest(path, data);
-		return res_t(boost::beast::http::status::ok, 11, std::string());
+		boost::filesystem::ifstream ifst = boost::filesystem::ifstream(m_dir / path, std::ios_base::in | std::ios_base::binary);
+		std::stringstream ss;
+		ss << ifst.rdbuf();
+		if (!ifst.eof())
+			throw std::runtime_error("");
+		return res_t(boost::beast::http::status::ok, 11, ss.str());
 	}
 
 	boost::filesystem::path m_dir;

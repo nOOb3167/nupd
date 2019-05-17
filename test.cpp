@@ -10,6 +10,7 @@
 #include <boost/filesystem.hpp>
 
 #include <psnupd.hpp>
+#include <pscon.hpp>
 
 using fpt_t = std::tuple<boost::filesystem::path, std::string>;
 using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
