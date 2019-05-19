@@ -2,16 +2,19 @@
 #define _PSCON_HPP_
 
 #include <cassert>
+#include <exception>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 #include <stdexcept>
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 
 using tcp = ::boost::asio::ip::tcp;
@@ -20,6 +23,98 @@ namespace http = ::boost::beast::http;
 using res_t = ::http::response<http::string_body>;
 
 class con_tag_ratio_t {};
+
+class XRunInThread
+{
+public:
+	inline XRunInThread(const std::function<void()> &f) :
+		m_f(f),
+		m_e(),
+		m_t(std::bind(&XRunInThread::_run, this))
+	{}
+
+	inline virtual ~XRunInThread()
+	{
+		if (m_t.joinable())
+			m_t.join();
+		if (m_e)
+			std::rethrow_exception(m_e);
+	}
+
+	inline void
+	_run()
+	{
+		try {
+			m_f();
+		}
+		catch (...) {
+			m_e = std::current_exception();
+		}
+	}
+
+	std::function<void()> m_f;
+	std::exception_ptr m_e;
+	std::thread m_t;
+};
+
+inline std::string
+_readfile(const boost::filesystem::path &path)
+{
+	boost::filesystem::ifstream ifst = boost::filesystem::ifstream(path, std::ios_base::in | std::ios_base::binary);
+	std::stringstream ss;
+	ss << ifst.rdbuf();
+	// ss fail conditions: error OR file is empty
+	// https://en.cppreference.com/w/cpp/io/basic_ostream/operator_ltlt
+	// https://en.cppreference.com/w/cpp/io/basic_streambuf/pubseekoff
+	//   If no characters were inserted, executes setstate(failbit). If an exception was thrown while extracting, sets failbit
+	//   "no characters were inserted" applies on an empty file
+	// to distinguish error from empty file
+	// (note istream::rdbuf::pubseekoff as in istream::{seekg,tellg} tellg returns -1 on a fail condition)
+	if (!ss.good() && ifst.rdbuf()->pubseekoff(0, std::ios_base::end, std::ios_base::in) != 0)
+		throw std::runtime_error("");
+	if (!ifst.good())
+		throw std::runtime_error("");
+	return ss.str();
+}
+
+inline std::string
+_accept_oneshot_http(const std::string &strport, size_t timo_ms)
+{
+	boost::asio::streambuf stre;
+	boost::asio::io_service serv;
+	tcp::endpoint endp(tcp::v4(), unsigned short(std::stoi(strport)));
+	tcp::acceptor acce(serv, endp);
+	acce.listen();
+	tcp::socket sock = acce.accept();
+	//const size_t nread = boost::asio::read(sock, stre, boost::asio::transfer_exactly(8192));
+	//const auto &bufs = stre.data();
+	//boost::asio::write(sock, boost::asio::buffer("HTTP/1.1 200 OK\r\n\r\n"));
+	//return std::string(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + nread);
+
+	size_t nread = 0;
+
+	std::function<void(const boost::system::error_code &)> wc = [&sock](const boost::system::error_code &ec) {
+		if (ec)
+			return;
+		sock.cancel();
+	};
+	boost::asio::deadline_timer timo(serv);
+	timo.expires_from_now(boost::posix_time::milliseconds(timo_ms));
+	timo.async_wait(boost::bind(wc, boost::asio::placeholders::error));
+
+	std::function<void(size_t, const boost::system::error_code &)> rc = [&timo, &nread](size_t bytes_transferred, const boost::system::error_code &ec) {
+		if (ec && ec != boost::asio::error::operation_aborted || !bytes_transferred)
+			return;
+		timo.cancel();
+		nread = bytes_transferred;
+	};
+	boost::asio::async_read(sock, stre, boost::asio::transfer_all(), boost::bind(rc, boost::asio::placeholders::bytes_transferred, boost::asio::placeholders::error));
+	
+	serv.run();
+
+	const auto &bufs = stre.data();
+	return std::string(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + nread);
+}
 
 class ConProgress
 {
@@ -74,7 +169,12 @@ public:
 	inline std::string
 	_joinpath(const std::string &rootpath, const std::string &path)
 	{
-		return rootpath + (path.at(0) != '/' ? "/" : "") + path;
+		boost::cmatch what;
+		if (!boost::regex_search(rootpath.c_str(), what, boost::regex("^(/([[:word:]]+/)?)?$"), boost::match_default))
+			throw std::runtime_error("");
+		if (path.at(0) == '/')
+			throw std::runtime_error("");
+		return rootpath + path;
 	}
 
 	inline res_t
@@ -122,11 +222,11 @@ public:
 class PsConFs : public PsCon
 {
 public:
-	inline PsConFs(const std::string &dir) :
+	inline PsConFs(const boost::filesystem::path &rootdir) :
 		PsCon(),
-		m_dir(dir)
+		m_rootdir(rootdir)
 	{
-		if (!boost::filesystem::is_directory(m_dir))
+		if (!boost::filesystem::is_directory(m_rootdir))
 			throw std::runtime_error("");
 	};
 
@@ -138,15 +238,10 @@ public:
 	req(const std::string &path, const std::string &data) override
 	{
 		m_prog.onRequest(path, data);
-		boost::filesystem::ifstream ifst = boost::filesystem::ifstream(m_dir / path, std::ios_base::in | std::ios_base::binary);
-		std::stringstream ss;
-		ss << ifst.rdbuf();
-		if (!ifst.eof())
-			throw std::runtime_error("");
-		return res_t(boost::beast::http::status::ok, 11, ss.str());
+		return res_t(boost::beast::http::status::ok, 11, _readfile(m_rootdir / path));
 	}
 
-	boost::filesystem::path m_dir;
+	boost::filesystem::path m_rootdir;
 };
 
 #endif /* _PSCON_HPP_ */

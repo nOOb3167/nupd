@@ -1,16 +1,18 @@
 #define BOOST_TEST_MODULE nupd
 #include <boost/test/included/unit_test.hpp>
 
-#include <string>
-#include <vector>
-#include <sstream>
-#include <stdexcept>
+#include <chrono>
 #include <iostream>
+#include <stdexcept>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include <boost/filesystem.hpp>
 
-#include <psnupd.hpp>
 #include <pscon.hpp>
+#include <psnupd.hpp>
 
 using fpt_t = std::tuple<boost::filesystem::path, std::string>;
 using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
@@ -138,6 +140,32 @@ BOOST_AUTO_TEST_CASE(nupd_main4)
 		{ {"a0.txt", "c"}, {"a.txt", "b"}, {"b.txt", "c"} }
 	);
 	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+}
+
+BOOST_AUTO_TEST_CASE(nupd_con0)
+{
+	TmpDirFixture w(
+		{ {"a.txt", ""}, {"b.txt", "b"}, {"d/e/c.txt", "c"} },
+		{},
+		{}
+	);
+	PsConFs c(w.m_tmpd_our.m_d);
+	c.req("a.txt", "").body() == "";
+	c.req("b.txt", "").body() == "b";
+	c.req("d/e/c.txt", "").body() == "c";
+}
+
+BOOST_AUTO_TEST_CASE(nupd_con1)
+{
+	TmpDirFixture w(
+		{},
+		{},
+		{}
+	);
+	XRunInThread r([]() { _accept_oneshot_http("9865", 1000); });
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	PsConNet c("localhost", "9865", "/test/");
+	c.req("a.txt", "").body();
 }
 
 BOOST_AUTO_TEST_SUITE_END();
