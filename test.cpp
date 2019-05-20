@@ -9,13 +9,34 @@
 #include <thread>
 #include <vector>
 
+#include <boost/algorithm/string/regex.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
+#include <boost/thread/barrier.hpp>
 
 #include <pscon.hpp>
 #include <psnupd.hpp>
 
 using fpt_t = std::tuple<boost::filesystem::path, std::string>;
 using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
+
+inline std::vector<std::string>
+_re_getline(const std::string &str)
+{
+	// https://www.boost.org/doc/libs/1_31_0/libs/regex/doc/syntax.html
+	//   Expression  Text  POSIX leftmost longest match  ECMAScript depth first search match
+	//   a|ab        xaby  "ab"                          "a"
+	// POSIX is boost::regex::extended, ECMAScript boost:regex::normal is the default
+	std::vector<std::string> line;
+	boost::algorithm::split_regex(line, str, boost::regex("\n|\r|(\r\n)", boost::regex::extended));
+	return line;
+}
+
+inline bool
+_re_match(const std::string &str, const char *regx)
+{
+	return boost::regex_match(str.c_str(), boost::cmatch(), boost::regex(regx), boost::match_default);
+}
 
 class TmpDirX
 {
@@ -142,6 +163,16 @@ BOOST_AUTO_TEST_CASE(nupd_main4)
 	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
 }
 
+BOOST_AUTO_TEST_CASE(nupd_con_joinpath)
+{
+	BOOST_CHECK_NO_THROW(PsConNet::_joinpath("", ""));
+	BOOST_CHECK_NO_THROW(PsConNet::_joinpath("/", ""));
+	BOOST_CHECK_NO_THROW(PsConNet::_joinpath("/abc/", ""));
+	BOOST_CHECK_NO_THROW(PsConNet::_joinpath("/abc/def/", ""));
+	BOOST_CHECK_THROW(PsConNet::_joinpath("/abc", ""), std::runtime_error);
+	BOOST_CHECK_THROW(PsConNet::_joinpath("/abc/def", ""), std::runtime_error);
+}
+
 BOOST_AUTO_TEST_CASE(nupd_con0)
 {
 	TmpDirFixture w(
@@ -157,13 +188,20 @@ BOOST_AUTO_TEST_CASE(nupd_con0)
 
 BOOST_AUTO_TEST_CASE(nupd_con1)
 {
+	boost::barrier barr(2);
 	TmpDirFixture w(
 		{},
 		{},
 		{}
 	);
-	XRunInThread r([]() { _accept_oneshot_http("9865", 1000); });
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	XRunInThread r([&]() {
+		const auto &str = _accept_oneshot_http("9865", 1000, barr);
+		std::vector<std::string> line = _re_getline(str);
+		BOOST_CHECK(_re_match(line.at(0), "GET /test/a.txt .*"));
+		BOOST_CHECK(_re_match(line.at(1), "Host: .*"));
+		BOOST_CHECK(_re_match(line.at(2), "User-Agent: .*"));
+	});
+	barr.wait();
 	PsConNet c("localhost", "9865", "/test/");
 	c.req("a.txt", "").body();
 }

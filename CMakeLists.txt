@@ -12,7 +12,7 @@ add_executable(nupd hasher.cpp hasher.hpp pscon.hpp psnupd.hpp test.cpp)
 target_compile_definitions(nupd PRIVATE _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING BOOST_FILESYSTEM_NO_DEPRECATED WIN32_LEAN_AND_MEAN #[[ boost chokes (winsock.h already included) unless lean is defined ]])
 target_compile_options(nupd PRIVATE "/bigobj")
 target_include_directories(nupd PRIVATE ${CMAKE_SOURCE_DIR})
-target_link_libraries(nupd Boost::boost Boost::date_time Boost::filesystem Boost::regex Boost::unit_test_framework Bcrypt)
+target_link_libraries(nupd Boost::boost Boost::date_time Boost::filesystem Boost::regex Boost::thread Boost::unit_test_framework Bcrypt)
 set_target_properties(nupd PROPERTIES CXX_STANDARD 17 RUNTIME_OUTPUT_DIRECTORY "$<0:>")
 
 add_test(nupd nupd)

@@ -16,6 +16,7 @@
 #include <boost/beast.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
+#include <boost/thread/barrier.hpp>
 
 using tcp = ::boost::asio::ip::tcp;
 namespace http = ::boost::beast::http;
@@ -78,18 +79,10 @@ _readfile(const boost::filesystem::path &path)
 }
 
 inline std::string
-_accept_oneshot_http(const std::string &strport, size_t timo_ms)
+_read_oneshot_timeout(boost::asio::io_service &serv, tcp::socket &sock, size_t timo_ms)
 {
 	boost::asio::streambuf stre;
-	boost::asio::io_service serv;
-	tcp::endpoint endp(tcp::v4(), unsigned short(std::stoi(strport)));
-	tcp::acceptor acce(serv, endp);
-	acce.listen();
-	tcp::socket sock = acce.accept();
-	//const size_t nread = boost::asio::read(sock, stre, boost::asio::transfer_exactly(8192));
-	//const auto &bufs = stre.data();
-	//boost::asio::write(sock, boost::asio::buffer("HTTP/1.1 200 OK\r\n\r\n"));
-	//return std::string(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + nread);
+	boost::asio::deadline_timer timo(serv);
 
 	size_t nread = 0;
 
@@ -98,22 +91,43 @@ _accept_oneshot_http(const std::string &strport, size_t timo_ms)
 			return;
 		sock.cancel();
 	};
-	boost::asio::deadline_timer timo(serv);
-	timo.expires_from_now(boost::posix_time::milliseconds(timo_ms));
-	timo.async_wait(boost::bind(wc, boost::asio::placeholders::error));
-
 	std::function<void(size_t, const boost::system::error_code &)> rc = [&timo, &nread](size_t bytes_transferred, const boost::system::error_code &ec) {
 		if (ec && ec != boost::asio::error::operation_aborted || !bytes_transferred)
 			return;
 		timo.cancel();
 		nread = bytes_transferred;
 	};
+
+	timo.expires_from_now(boost::posix_time::milliseconds(timo_ms));
+	timo.async_wait(boost::bind(wc, boost::asio::placeholders::error));
 	boost::asio::async_read(sock, stre, boost::asio::transfer_all(), boost::bind(rc, boost::asio::placeholders::bytes_transferred, boost::asio::placeholders::error));
-	
+
 	serv.run();
+	serv.reset();
 
 	const auto &bufs = stre.data();
 	return std::string(boost::asio::buffers_begin(bufs), boost::asio::buffers_begin(bufs) + nread);
+}
+
+inline std::string
+_accept_oneshot_http(const std::string &strport, size_t timo_ms, boost::barrier &bar_listen)
+{
+	boost::asio::io_service serv;
+	tcp::endpoint endp(tcp::v4(), unsigned short(std::stoi(strport)));
+	tcp::acceptor acce(serv, endp);
+	acce.listen();
+
+	bar_listen.wait();
+
+	tcp::socket sock = acce.accept();
+
+	std::string resp = _read_oneshot_timeout(serv, sock, timo_ms);
+
+	boost::asio::write(sock, boost::asio::buffer("HTTP/1.1 200 OK\r\n\r\n"), boost::asio::transfer_all());
+
+	sock.close();
+
+	return resp;
 }
 
 class ConProgress
@@ -166,13 +180,13 @@ public:
 		boost::asio::connect(*m_socket, m_resolver_r.begin(), m_resolver_r.end());
 	}
 
-	inline std::string
+	inline static std::string
 	_joinpath(const std::string &rootpath, const std::string &path)
 	{
 		boost::cmatch what;
-		if (!boost::regex_search(rootpath.c_str(), what, boost::regex("^(/([[:word:]]+/)?)?$"), boost::match_default))
+		if (!boost::regex_match(rootpath.c_str(), what, boost::regex("(/([[:word:]]+/)*)?")))
 			throw std::runtime_error("");
-		if (path.at(0) == '/')
+		if (path.size() && path.at(0) == '/')
 			throw std::runtime_error("");
 		return rootpath + path;
 	}
