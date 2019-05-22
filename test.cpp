@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE nupd
 #include <boost/test/included/unit_test.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -104,6 +105,12 @@ public:
 		return buf.str();
 	}
 
+	inline TmpDirFixture &
+	_mklistfile()
+	{
+		std::vector<fpt_t> fpt_the(m_fpt_the);
+	}
+
 	TmpDirX m_tmpd_our;
 	TmpDirX m_tmpd_the;
 	std::vector<fpt_t> m_fpt_our;
@@ -113,6 +120,16 @@ public:
 
 BOOST_AUTO_TEST_SUITE(nupd_suite);
 
+BOOST_AUTO_TEST_CASE(nupd_mklistfile)
+{
+	TmpDirFixture w(
+		{ {"a.txt", "a"} },
+		{},
+		{}
+	);
+	BOOST_REQUIRE(_dir_mklistfile(w.m_tmpd_our.m_d) == "\"a.txt\" CA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB\n");
+}
+
 BOOST_AUTO_TEST_CASE(nupd_main0)
 {
 	TmpDirFixture w(
@@ -120,7 +137,8 @@ BOOST_AUTO_TEST_CASE(nupd_main0)
 		{ {"a.txt", "a"} },
 		{ {"a.txt", "a"} }
 	);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+	PsConFs psco(w.m_tmpd_the.m_d);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main1)
@@ -130,7 +148,8 @@ BOOST_AUTO_TEST_CASE(nupd_main1)
 		{ {"a.txt", "a"} },
 		{ {"a.txt", "a"} }
 	);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+	PsConFs psco(w.m_tmpd_the.m_d);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main2)
@@ -140,7 +159,8 @@ BOOST_AUTO_TEST_CASE(nupd_main2)
 		{ {"a.txt", "b"} },
 		{ {"a.txt", "b"} }
 	);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+	PsConFs psco(w.m_tmpd_the.m_d);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main3)
@@ -150,7 +170,8 @@ BOOST_AUTO_TEST_CASE(nupd_main3)
 		{ {"a.txt", "b"} },
 		{ {"a.txt", "b"}, {"a1.txt", "c" } }
 	);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+	PsConFs psco(w.m_tmpd_the.m_d);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main4)
@@ -160,7 +181,8 @@ BOOST_AUTO_TEST_CASE(nupd_main4)
 		{ {"a.txt", "b"}, {"b.txt", "c"} },
 		{ {"a0.txt", "c"}, {"a.txt", "b"}, {"b.txt", "c"} }
 	);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d);
+	PsConFs psco(w.m_tmpd_the.m_d);
+	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_con_joinpath)

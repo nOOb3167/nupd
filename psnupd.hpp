@@ -137,6 +137,18 @@ _dir_checksum(const boost::filesystem::path &dirp)
 	return std::make_tuple(fils, sums);
 }
 
+inline std::string
+_dir_mklistfile(const boost::filesystem::path &dirp)
+{
+	const auto &[fils, sums] = _dir_checksum(dirp);
+	std::stringstream ss;
+	for (const auto &[k, v] : ItPair(fils, sums))
+		ss << k << " " << v << std::endl;
+	if (!ss.good())
+		throw std::runtime_error("");
+	return ss.str();
+}
+
 inline std::vector<ps_sha_t>
 _missing_checksum(const std::vector<ps_sha_t> &xold, const std::vector<ps_sha_t> &xnew)
 {
@@ -163,6 +175,16 @@ _tmp_move_tempname(const boost::filesystem::path &src, const boost::filesystem::
 {
 	boost::filesystem::path dstp = dstroot / boost::filesystem::unique_path();
 	boost::filesystem::rename(src, dstp);
+	return std::make_tuple(dstroot, boost::filesystem::relative(dstp, dstroot));
+}
+
+inline std::tuple<boost::filesystem::path, boost::filesystem::path>
+_tmp_write_tempname(std::string &data, const boost::filesystem::path &dstroot)
+{
+	boost::filesystem::path dstp = dstroot / boost::filesystem::unique_path();
+	boost::filesystem::ofstream ofst = boost::filesystem::ofstream(dstp, std::ios_base::out | std::ios_base::binary);
+	if (!ofst.write(data.data(), data.size()))
+		throw std::runtime_error("");
 	return std::make_tuple(dstroot, boost::filesystem::relative(dstp, dstroot));
 }
 
@@ -194,7 +216,7 @@ inline std::tuple<std::vector<boost::filesystem::path>, std::vector<ps_sha_t> >
 _tmp_fakedl(
 	const boost::filesystem::path &srcroot,
 	const boost::filesystem::path &dstroot,
-	const std::vector<ps_sha_t> &dlsha,
+	const std::vector<ps_sha_t> dlsha,
 	const std::vector<boost::filesystem::path> &aux_fils,
 	const std::vector<ps_sha_t> &aux_sums)
 {
@@ -209,8 +231,28 @@ _tmp_fakedl(
 	return std::make_tuple(fils, dlsha);
 }
 
+inline std::tuple<std::vector<boost::filesystem::path>, std::vector<ps_sha_t> >
+_tmp_realdl(
+	const boost::filesystem::path &srcroot,
+	const boost::filesystem::path &dstroot,
+	const std::vector<ps_sha_t> dlsha,
+	const std::vector<boost::filesystem::path> &aux_fils,
+	const std::vector<ps_sha_t> &aux_sums,
+	PsCon &psco)
+{
+	std::map<ps_sha_t, boost::filesystem::path> dsf;
+	for (const auto &[k, v] : ItPair(aux_fils, aux_sums))
+		dsf[v] = k;
+
+	std::vector<boost::filesystem::path> fils;
+	for (const auto &v : dlsha)
+		fils.push_back(std::get<1>(_tmp_write_tempname(psco.req(dsf.at(v).string(), "").body(), dstroot)));
+
+	return std::make_tuple(fils, dlsha);
+}
+
 inline int
-_main(const boost::filesystem::path &ourroot, const boost::filesystem::path &theroot)
+_main(const boost::filesystem::path &ourroot, const boost::filesystem::path &theroot, PsCon &psco)
 {
 	const auto &[goal_fils, goal_sums] = _dir_checksum(theroot);
 	auto &[beg_fils, beg_sums] = _dir_checksum(ourroot);
@@ -218,7 +260,7 @@ _main(const boost::filesystem::path &ourroot, const boost::filesystem::path &the
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
 
 	if (miss_sums.size()) {
-		auto &[dl_fils, dl_sums] = _tmp_fakedl(theroot, ourroot, miss_sums, goal_fils, goal_sums);
+		auto &[dl_fils, dl_sums] = _tmp_realdl(theroot, ourroot, miss_sums, goal_fils, goal_sums, psco);
 		std::copy(dl_fils.begin(), dl_fils.end(), std::back_inserter(beg_fils));
 		std::copy(dl_sums.begin(), dl_sums.end(), std::back_inserter(beg_sums));
 	}

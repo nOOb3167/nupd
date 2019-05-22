@@ -5,6 +5,7 @@
 #include <string>
 #include <tuple>
 
+#include <boost/algorithm/hex.hpp>
 #include <boost/filesystem.hpp>
 
 #include <hasher.hpp>
@@ -79,7 +80,7 @@ _hhhashdata(const ps_crypt_t &cryp, char *buf, size_t buf_len)
 		throw std::runtime_error("");
 }
 
-inline ps_sha_t
+inline std::string
 _hhfinish(const ps_crypt_t &cryp)
 {
 	if (!NT_SUCCESS(BCryptFinishHash(*std::get<1>(cryp), (PUCHAR) std::get<3>(cryp).get(), (ULONG) std::get<4>(cryp), 0)))
@@ -98,8 +99,8 @@ _hhcrypt(const ps_crypt_t &cryp)
 		throw std::runtime_error("");
 }
 
-ps_sha_t
-_fname_checksum(const boost::filesystem::path &file)
+inline std::string
+_fname_checksum_bin(const boost::filesystem::path &file)
 {
 	bool pending_end = false;
 	char buf[16 * 4096] = {};
@@ -112,4 +113,10 @@ _fname_checksum(const boost::filesystem::path &file)
 	if (!ifst.eof())
 		throw std::runtime_error("");
 	return _hhfinish(cryp);
+}
+
+ps_sha_t
+_fname_checksum(const boost::filesystem::path &file)
+{
+	return boost::algorithm::hex(_fname_checksum_bin(file));
 }
