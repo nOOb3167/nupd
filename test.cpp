@@ -10,9 +10,7 @@
 #include <thread>
 #include <vector>
 
-#include <boost/algorithm/string/regex.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/regex.hpp>
 #include <boost/thread/barrier.hpp>
 
 #include <pscon.hpp>
@@ -20,24 +18,6 @@
 
 using fpt_t = std::tuple<boost::filesystem::path, std::string>;
 using fpt3_t = std::tuple<std::vector<fpt_t>, std::vector<fpt_t>, std::vector<fpt_t> >;
-
-inline std::vector<std::string>
-_re_getline(const std::string &str)
-{
-	// https://www.boost.org/doc/libs/1_31_0/libs/regex/doc/syntax.html
-	//   Expression  Text  POSIX leftmost longest match  ECMAScript depth first search match
-	//   a|ab        xaby  "ab"                          "a"
-	// POSIX is boost::regex::extended, ECMAScript boost:regex::normal is the default
-	std::vector<std::string> line;
-	boost::algorithm::split_regex(line, str, boost::regex("\n|\r|(\r\n)", boost::regex::extended));
-	return line;
-}
-
-inline bool
-_re_match(const std::string &str, const char *regx)
-{
-	return boost::regex_match(str.c_str(), boost::cmatch(), boost::regex(regx), boost::match_default);
-}
 
 class TmpDirX
 {
@@ -78,6 +58,7 @@ public:
 	{
 		_filldir(m_tmpd_our.m_d, fpt_our);
 		_filldir(m_tmpd_the.m_d, fpt_the);
+		_tmp_write_filename(_dir_mklistfile(m_tmpd_the.m_d), m_tmpd_the.m_d / "listfile.psli");
 	}
 
 	inline virtual ~TmpDirFixture()
@@ -105,12 +86,6 @@ public:
 		return buf.str();
 	}
 
-	inline TmpDirFixture &
-	_mklistfile()
-	{
-		std::vector<fpt_t> fpt_the(m_fpt_the);
-	}
-
 	TmpDirX m_tmpd_our;
 	TmpDirX m_tmpd_the;
 	std::vector<fpt_t> m_fpt_our;
@@ -119,6 +94,20 @@ public:
 };
 
 BOOST_AUTO_TEST_SUITE(nupd_suite);
+
+BOOST_AUTO_TEST_CASE(nupd_getline)
+{
+	if (auto & r = _re_getline("a\r\nb"); r.size() == 2 && r.at(0) == "a" && r.at(1) == "b")
+		BOOST_REQUIRE(false);
+	if (auto & r = _re_getline("a\rb"); r.size() == 2 && r.at(0) == "a" && r.at(1) == "b")
+		BOOST_REQUIRE(false);
+	if (auto &r = _re_getline("a\nb\nc\n"); r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c")
+		BOOST_REQUIRE(false);
+	if (auto & r = _re_getline("a\nb\nc"); r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c")
+		BOOST_REQUIRE(false);
+	if (auto & r = _re_getline("a\nb\nc\n\n"); r.size() == 4 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c" && r.at(3) == "")
+		BOOST_REQUIRE(false);
+}
 
 BOOST_AUTO_TEST_CASE(nupd_mklistfile)
 {

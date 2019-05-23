@@ -13,7 +13,9 @@
 #include <hasher.hpp>
 #include <pscon.hpp>
 
+#include <boost/algorithm/string/regex.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
 
 // boost::filesystem::{weakly_}canonical : weakly does not require existence
 
@@ -106,6 +108,26 @@ public:
 
 using nupdd_t = std::map<boost::filesystem::path, NupdD>;
 
+inline std::vector<std::string>
+_re_getline(const std::string &str)
+{
+	// https://www.boost.org/doc/libs/1_31_0/libs/regex/doc/syntax.html
+	//   Expression  Text  POSIX leftmost longest match  ECMAScript depth first search match
+	//   a|ab        xaby  "ab"                          "a"
+	// POSIX is boost::regex::extended, ECMAScript boost:regex::normal is the default
+	std::vector<std::string> line;
+	const boost::regex nla("(\n|\r|(\r\n))$", boost::regex::extended);
+	const boost::regex nlb("\n|\r|(\r\n)", boost::regex::extended);
+	boost::algorithm::split_regex(line, boost::regex_replace(str, nla, "", boost::match_single_line), nlb);
+	return line;
+}
+
+inline bool
+_re_match(const std::string &str, const char *regx)
+{
+	return boost::regex_match(str.c_str(), boost::cmatch(), boost::regex(regx), boost::match_default);
+}
+
 inline std::vector<boost::filesystem::path>
 _fnames_rec_sorted(const boost::filesystem::path &dirp)
 {
@@ -189,6 +211,14 @@ _tmp_write_tempname(std::string &data, const boost::filesystem::path &dstroot)
 }
 
 inline void
+_tmp_write_filename(std::string &data, const boost::filesystem::path &dst)
+{
+	boost::filesystem::ofstream ofst = boost::filesystem::ofstream(dst, std::ios_base::out | std::ios_base::binary);
+	if (!ofst.write(data.data(), data.size()))
+		throw std::runtime_error("");
+}
+
+inline void
 _del_last_if_file(const boost::filesystem::path &path)
 {
 	for (auto &cano = boost::filesystem::weakly_canonical(path); cano.has_parent_path(); cano = cano.parent_path())
@@ -251,11 +281,37 @@ _tmp_realdl(
 	return std::make_tuple(fils, dlsha);
 }
 
+inline std::tuple<std::vector<boost::filesystem::path>, std::vector<ps_sha_t> >
+_tmp_listfiledl(PsCon &psco)
+{
+	std::vector<boost::filesystem::path> fils;
+	std::vector<ps_sha_t> sums;
+	std::string listfile = psco.req("listfile.psli", "").body();
+	std::stringstream ss;
+	if (!(ss << listfile))
+		throw std::runtime_error("");
+	for (const auto &v : _re_getline(listfile)) {
+		std::stringstream ss_;
+		if (!(ss_ << v))
+			throw std::runtime_error("");
+		std::string fna, sum;
+		std::getline(ss_, fna, ' ');
+		std::getline(ss_, sum);
+		if (!ss_.eof())
+			throw std::runtime_error("");
+		fils.push_back(fna);
+		sums.push_back(sum);
+	}
+	return std::make_tuple(fils, sums);
+}
+
 inline int
 _main(const boost::filesystem::path &ourroot, const boost::filesystem::path &theroot, PsCon &psco)
 {
 	const auto &[goal_fils, goal_sums] = _dir_checksum(theroot);
 	auto &[beg_fils, beg_sums] = _dir_checksum(ourroot);
+
+	const auto &[goal_fils2, goal_sums2] = _tmp_listfiledl(psco);
 
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
 
