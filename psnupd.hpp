@@ -165,7 +165,7 @@ _dir_mklistfile(const boost::filesystem::path &dirp)
 	const auto &[fils, sums] = _dir_checksum(dirp);
 	std::stringstream ss;
 	for (const auto &[k, v] : ItPair(fils, sums))
-		ss << k << " " << v << std::endl;
+		ss << k.string() << " " << v << std::endl;
 	if (!ss.good())
 		throw std::runtime_error("");
 	return ss.str();
