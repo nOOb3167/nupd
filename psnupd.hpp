@@ -211,7 +211,7 @@ _tmp_write_tempname(std::string &data, const boost::filesystem::path &dstroot)
 }
 
 inline void
-_tmp_write_filename(std::string &data, const boost::filesystem::path &dst)
+_tmp_write_filename(const std::string &data, const boost::filesystem::path &dst)
 {
 	boost::filesystem::ofstream ofst = boost::filesystem::ofstream(dst, std::ios_base::out | std::ios_base::binary);
 	if (!ofst.write(data.data(), data.size()))

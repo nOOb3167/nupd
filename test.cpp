@@ -95,18 +95,29 @@ public:
 
 BOOST_AUTO_TEST_SUITE(nupd_suite);
 
+BOOST_AUTO_TEST_CASE(nupd_file)
+{
+	TmpDirFixture w(
+		{},
+		{},
+		{}
+	);
+	_tmp_write_filename("a", w.m_tmpd_our.m_d / "a.txt");
+	BOOST_REQUIRE(_readfile(w.m_tmpd_our.m_d / "a.txt") == "a");
+}
+
 BOOST_AUTO_TEST_CASE(nupd_getline)
 {
-	if (auto & r = _re_getline("a\r\nb"); r.size() == 2 && r.at(0) == "a" && r.at(1) == "b")
-		BOOST_REQUIRE(false);
-	if (auto & r = _re_getline("a\rb"); r.size() == 2 && r.at(0) == "a" && r.at(1) == "b")
-		BOOST_REQUIRE(false);
-	if (auto &r = _re_getline("a\nb\nc\n"); r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c")
-		BOOST_REQUIRE(false);
-	if (auto & r = _re_getline("a\nb\nc"); r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c")
-		BOOST_REQUIRE(false);
-	if (auto & r = _re_getline("a\nb\nc\n\n"); r.size() == 4 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c" && r.at(3) == "")
-		BOOST_REQUIRE(false);
+	if (auto & r = _re_getline("a\r\nb"); true)
+		BOOST_REQUIRE(r.size() == 2 && r.at(0) == "a" && r.at(1) == "b");
+	if (auto & r = _re_getline("a\rb"); true)
+		BOOST_REQUIRE(r.size() == 2 && r.at(0) == "a" && r.at(1) == "b");
+	if (auto &r = _re_getline("a\nb\nc\n"); true)
+		BOOST_REQUIRE(r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c");
+	if (auto & r = _re_getline("a\nb\nc"); true)
+		BOOST_REQUIRE(r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c");
+	if (auto & r = _re_getline("a\nb\nc\n\n"); true)
+		BOOST_REQUIRE(r.size() == 4 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c" && r.at(3) == "");
 }
 
 BOOST_AUTO_TEST_CASE(nupd_mklistfile)
