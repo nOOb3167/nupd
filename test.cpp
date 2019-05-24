@@ -138,7 +138,7 @@ BOOST_AUTO_TEST_CASE(nupd_main0)
 		{ {"a.txt", "a"} }
 	);
 	PsConFs psco(w.m_tmpd_the.m_d);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
+	_main(w.m_tmpd_our.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main1)
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(nupd_main1)
 		{ {"a.txt", "a"} }
 	);
 	PsConFs psco(w.m_tmpd_the.m_d);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
+	_main(w.m_tmpd_our.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main2)
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE(nupd_main2)
 		{ {"a.txt", "b"} }
 	);
 	PsConFs psco(w.m_tmpd_the.m_d);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
+	_main(w.m_tmpd_our.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main3)
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(nupd_main3)
 		{ {"a.txt", "b"}, {"a1.txt", "c" } }
 	);
 	PsConFs psco(w.m_tmpd_the.m_d);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
+	_main(w.m_tmpd_our.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_main4)
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE(nupd_main4)
 		{ {"a0.txt", "c"}, {"a.txt", "b"}, {"b.txt", "c"} }
 	);
 	PsConFs psco(w.m_tmpd_the.m_d);
-	_main(w.m_tmpd_our.m_d, w.m_tmpd_the.m_d, psco);
+	_main(w.m_tmpd_our.m_d, psco);
 }
 
 BOOST_AUTO_TEST_CASE(nupd_con_joinpath)

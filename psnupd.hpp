@@ -229,41 +229,22 @@ _del_last_if_file(const boost::filesystem::path &path)
 		}
 }
 
-inline void
-_tmp_copy_force_makedst(const boost::filesystem::path &src, const boost::filesystem::path &dst_)
+inline std::tuple<boost::filesystem::path, boost::filesystem::path>
+_tmp_copy_force_makedst(const boost::filesystem::path &src, const boost::filesystem::path &dstroot, const boost::filesystem::path &dstrel)
 {
 	const char uniq_path_pattern[] = "pstmp%%%%-%%%%-%%%%-%%%%";
-	const auto &dst = boost::filesystem::weakly_canonical(dst_);
-	assert(dst.has_parent_path());
-	_del_last_if_file(dst);
-	boost::filesystem::create_directories(dst.parent_path());
-	if (boost::filesystem::exists(dst))
-		boost::filesystem::rename(dst, boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(uniq_path_pattern));
-	boost::filesystem::copy_file(src, dst, boost::filesystem::copy_option::fail_if_exists);
-}
-
-inline std::tuple<std::vector<boost::filesystem::path>, std::vector<ps_sha_t> >
-_tmp_fakedl(
-	const boost::filesystem::path &srcroot,
-	const boost::filesystem::path &dstroot,
-	const std::vector<ps_sha_t> dlsha,
-	const std::vector<boost::filesystem::path> &aux_fils,
-	const std::vector<ps_sha_t> &aux_sums)
-{
-	std::map<ps_sha_t, boost::filesystem::path> dsf;
-	for (const auto &[k, v] : ItPair(aux_fils, aux_sums))
-		dsf[v] = k;
-
-	std::vector<boost::filesystem::path> fils;
-	for (const auto &v : dlsha)
-		fils.push_back(std::get<1>(_tmp_copy_tempname(srcroot / dsf.at(v), dstroot)));
-
-	return std::make_tuple(fils, dlsha);
+	const auto &dstp = boost::filesystem::weakly_canonical(dstroot / dstrel);
+	assert(dstp.has_parent_path());
+	_del_last_if_file(dstp);
+	boost::filesystem::create_directories(dstp.parent_path());
+	if (boost::filesystem::exists(dstp))
+		boost::filesystem::rename(dstp, boost::filesystem::temp_directory_path() / boost::filesystem::unique_path(uniq_path_pattern));
+	boost::filesystem::copy_file(src, dstp, boost::filesystem::copy_option::fail_if_exists);
+	return std::make_tuple(dstroot, boost::filesystem::relative(dstp, dstroot));
 }
 
 inline std::tuple<std::vector<boost::filesystem::path>, std::vector<ps_sha_t> >
 _tmp_realdl(
-	const boost::filesystem::path &srcroot,
 	const boost::filesystem::path &dstroot,
 	const std::vector<ps_sha_t> dlsha,
 	const std::vector<boost::filesystem::path> &aux_fils,
@@ -306,17 +287,15 @@ _tmp_listfiledl(PsCon &psco)
 }
 
 inline int
-_main(const boost::filesystem::path &ourroot, const boost::filesystem::path &theroot, PsCon &psco)
+_main(const boost::filesystem::path &ourroot, PsCon &psco)
 {
-	const auto &[goal_fils, goal_sums] = _dir_checksum(theroot);
+	const auto &[goal_fils, goal_sums] = _tmp_listfiledl(psco);
 	auto &[beg_fils, beg_sums] = _dir_checksum(ourroot);
-
-	const auto &[goal_fils2, goal_sums2] = _tmp_listfiledl(psco);
 
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
 
 	if (miss_sums.size()) {
-		auto &[dl_fils, dl_sums] = _tmp_realdl(theroot, ourroot, miss_sums, goal_fils, goal_sums, psco);
+		auto &[dl_fils, dl_sums] = _tmp_realdl(ourroot, miss_sums, goal_fils, goal_sums, psco);
 		std::copy(dl_fils.begin(), dl_fils.end(), std::back_inserter(beg_fils));
 		std::copy(dl_sums.begin(), dl_sums.end(), std::back_inserter(beg_sums));
 	}
@@ -324,6 +303,11 @@ _main(const boost::filesystem::path &ourroot, const boost::filesystem::path &the
 	nupdd_t dd = NupdD::mk(beg_fils, beg_sums, goal_fils, goal_sums);
 
 	std::vector<std::tuple<boost::filesystem::path, boost::filesystem::path> > work;
+	std::vector<boost::filesystem::path> work2;
+
+	std::map<ps_sha_t, boost::filesystem::path> dsf;
+	for (const auto &[k, v] : ItPair(beg_fils, beg_sums))
+		dsf[v] = k;
 
 	for (const auto &[k, v] : dd)
 		if (v.m_a.size() && v.m_b.size() && v.m_a != v.m_b)
@@ -331,16 +315,9 @@ _main(const boost::filesystem::path &ourroot, const boost::filesystem::path &the
 	for (const auto &[k, rel] : work)
 		NupdD::xform_AB_AN__XX_NB(dd[k], dd[rel]);
 
-	std::map<ps_sha_t, boost::filesystem::path> dsf;
-	for (const auto &[k, v] : ItPair(beg_fils, beg_sums))
-		dsf[v] = k;
-
-	std::vector<boost::filesystem::path> work2;
 	for (const auto &[k, v] : dd)
-		if (v.m_a.size() && !v.m_b.size()) {
-			_tmp_copy_force_makedst(ourroot / dsf.at(v.m_a), ourroot / k);
-			work2.push_back(k);
-		}
+		if (v.m_a.size() && !v.m_b.size())
+			work2.push_back(std::get<1>(_tmp_copy_force_makedst(ourroot / dsf.at(v.m_a), ourroot, k)));
 	for (const auto &k : work2)
 		NupdD::xform_AN_AA(dd.at(k));
 
