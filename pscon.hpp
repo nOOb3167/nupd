@@ -113,7 +113,7 @@ inline std::string
 _accept_oneshot_http(const std::string &strport, size_t timo_ms, boost::barrier &bar_listen)
 {
 	boost::asio::io_service serv;
-	tcp::endpoint endp(tcp::v4(), unsigned short(std::stoi(strport)));
+	tcp::endpoint endp(tcp::v4(), (unsigned short)(std::stoi(strport)));
 	tcp::acceptor acce(serv, endp);
 	acce.listen();
 

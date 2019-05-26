@@ -34,7 +34,7 @@ public:
 		using itatyp = typename std::conditional<IsConst, typename T::const_iterator, typename T::iterator>::type;
 		using itbtyp = typename std::conditional<IsConst, typename U::const_iterator, typename U::iterator>::type;
 
-		inline It(itatyp &ia, itbtyp &ib) : m_tup(std::make_tuple(ia, ib)) {}
+		inline It(itatyp ia, itbtyp ib) : m_tup(std::make_tuple(ia, ib)) {}
 		inline It operator++() { ++std::get<0>(m_tup); ++std::get<1>(m_tup); return *this; }
 		inline bool operator!=(const It &other) const { return m_tup != other.m_tup; }
 		inline const valtyp operator*() const { return valtyp(*std::get<0>(m_tup), *std::get<1>(m_tup)); }
@@ -125,14 +125,15 @@ _re_getline(const std::string &str)
 inline bool
 _re_match(const std::string &str, const char *regx)
 {
-	return boost::regex_match(str.c_str(), boost::cmatch(), boost::regex(regx), boost::match_default);
+	boost::cmatch what;
+	return boost::regex_match(str.c_str(), what, boost::regex(regx), boost::match_default);
 }
 
 inline std::vector<boost::filesystem::path>
 _fnames_rec_sorted(const boost::filesystem::path &dirp)
 {
 	std::vector<boost::filesystem::path> fils;
-	for (auto &it = boost::filesystem::recursive_directory_iterator(dirp); it != boost::filesystem::recursive_directory_iterator(); ++it)
+	for (auto it = boost::filesystem::recursive_directory_iterator(dirp); it != boost::filesystem::recursive_directory_iterator(); ++it)
 		if (const boost::filesystem::path &f = it->path(); boost::filesystem::is_regular_file(f))
 			fils.push_back(f);
 	std::sort(fils.begin(), fils.end());
@@ -201,7 +202,7 @@ _tmp_move_tempname(const boost::filesystem::path &src, const boost::filesystem::
 }
 
 inline std::tuple<boost::filesystem::path, boost::filesystem::path>
-_tmp_write_tempname(std::string &data, const boost::filesystem::path &dstroot)
+_tmp_write_tempname(const std::string &data, const boost::filesystem::path &dstroot)
 {
 	boost::filesystem::path dstp = dstroot / boost::filesystem::unique_path();
 	boost::filesystem::ofstream ofst = boost::filesystem::ofstream(dstp, std::ios_base::out | std::ios_base::binary);
@@ -221,7 +222,7 @@ _tmp_write_filename(const std::string &data, const boost::filesystem::path &dst)
 inline void
 _del_last_if_file(const boost::filesystem::path &path)
 {
-	for (auto &cano = boost::filesystem::weakly_canonical(path); cano.has_parent_path(); cano = cano.parent_path())
+	for (auto cano = boost::filesystem::weakly_canonical(path); cano.has_parent_path(); cano = cano.parent_path())
 		if (boost::filesystem::exists(cano)) {
 			if (boost::filesystem::is_regular_file(cano))
 				boost::filesystem::remove(cano);
@@ -290,12 +291,12 @@ inline int
 _main(const boost::filesystem::path &ourroot, PsCon &psco)
 {
 	const auto &[goal_fils, goal_sums] = _tmp_listfiledl(psco);
-	auto &[beg_fils, beg_sums] = _dir_checksum(ourroot);
+	auto [beg_fils, beg_sums] = _dir_checksum(ourroot);
 
 	std::vector<ps_sha_t> miss_sums = _missing_checksum(beg_sums, goal_sums);
 
 	if (miss_sums.size()) {
-		auto &[dl_fils, dl_sums] = _tmp_realdl(ourroot, miss_sums, goal_fils, goal_sums, psco);
+		auto [dl_fils, dl_sums] = _tmp_realdl(ourroot, miss_sums, goal_fils, goal_sums, psco);
 		std::copy(dl_fils.begin(), dl_fils.end(), std::back_inserter(beg_fils));
 		std::copy(dl_sums.begin(), dl_sums.end(), std::back_inserter(beg_sums));
 	}

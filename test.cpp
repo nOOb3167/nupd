@@ -108,15 +108,15 @@ BOOST_AUTO_TEST_CASE(nupd_file)
 
 BOOST_AUTO_TEST_CASE(nupd_getline)
 {
-	if (auto & r = _re_getline("a\r\nb"); true)
+	if (const auto &r = _re_getline("a\r\nb"); true)
 		BOOST_REQUIRE(r.size() == 2 && r.at(0) == "a" && r.at(1) == "b");
-	if (auto & r = _re_getline("a\rb"); true)
+	if (const auto &r = _re_getline("a\rb"); true)
 		BOOST_REQUIRE(r.size() == 2 && r.at(0) == "a" && r.at(1) == "b");
-	if (auto &r = _re_getline("a\nb\nc\n"); true)
+	if (const auto &r = _re_getline("a\nb\nc\n"); true)
 		BOOST_REQUIRE(r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c");
-	if (auto & r = _re_getline("a\nb\nc"); true)
+	if (const auto &r = _re_getline("a\nb\nc"); true)
 		BOOST_REQUIRE(r.size() == 3 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c");
-	if (auto & r = _re_getline("a\nb\nc\n\n"); true)
+	if (const auto &r = _re_getline("a\nb\nc\n\n"); true)
 		BOOST_REQUIRE(r.size() == 4 && r.at(0) == "a" && r.at(1) == "b" && r.at(2) == "c" && r.at(3) == "");
 }
 
