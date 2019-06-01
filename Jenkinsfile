@@ -33,7 +33,7 @@ pipeline {
 					deleteDir()
 					unstash 'MinGWBuildStash'
 					unzip dir: '', zipFile: 'test0.zip', glob: ''
-					bat label: '', script: 'test0.exe --output_format=XML --log_level=test_suite --report_level=no > test0.xml'
+					bat label: '', script: 'test0.exe --output_format=XML --log_level=test_suite --report_level=no --result_code=no > test0.xml'
 				}
 			}
 			post {
