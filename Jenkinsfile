@@ -12,7 +12,7 @@ pipeline {
 									sh '[ -f /etc/fedora-release ]'
 									def extraCMakeArgs = '-DCMAKE_TOOLCHAIN_FILE=/usr/share/mingw/toolchain-mingw64.cmake'
 									dir("bld") {
-										cmakeBuild buildDir: '.', buildType: 'Release', installation: 'MinGW64', sourceDir: '..', steps: [[withCmake: true]], cmakeArgs: "${extraCMakeArgs}"
+										cmakeBuild buildDir: '.', buildType: 'RelWithDebInfo', installation: 'MinGW64', sourceDir: '..', steps: [[withCmake: true]], cmakeArgs: "${extraCMakeArgs}"
 										sh 'cp --target-directory=. /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-1.dll /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libstdc++-6.dll /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-1.dll'
 									}
 									dir("sta") {
@@ -53,7 +53,7 @@ pipeline {
 								script {
 									sh '[ -f /etc/fedora-release ]'
 									dir("bld2") {
-										cmakeBuild buildDir: '.', buildType: 'Release', installation: 'MinGW64', sourceDir: '..', steps: [[withCmake: true]]
+										cmakeBuild buildDir: '.', buildType: 'RelWithDebInfo', installation: 'MinGW64', sourceDir: '..', steps: [[withCmake: true]]
 										archiveArtifacts 'test0'
 									}
 								}
