@@ -17,7 +17,7 @@ target_compile_definitions(nupd PUBLIC
 	_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING
 	BOOST_FILESYSTEM_NO_DEPRECATED
 	WIN32_LEAN_AND_MEAN #[[ boost chokes (winsock.h already included) unless lean is defined ]]
-	$<$<BOOL:${MSVC}>:PS_USE_BCRYPT_WIN>)
+	$<$<BOOL:${MSVC}>:PS_USE_BCRYPT_WIN _WIN32_WINNT=0x0601 >)
 target_compile_options(nupd PUBLIC $<$<BOOL:${MSVC}>:/bigobj> $<$<BOOL:${MINGW}>:-Wa,-mbig-obj>)
 target_link_libraries(nupd
 	PUBLIC Boost::boost Boost::date_time Boost::filesystem Boost::regex Boost::thread
