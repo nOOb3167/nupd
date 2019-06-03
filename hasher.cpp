@@ -20,7 +20,7 @@ _fname_checksum(const boost::filesystem::path &file)
 	unsigned char sha[picosha2::k_digest_size] = {};
 	std::ifstream ifst = boost::filesystem::ifstream(file, std::ios_base::in | std::ios_base::binary);
 	picosha2::hash256(ifst, std::begin(sha), std::end(sha));
-	return std::string(std::begin(sha), std::end(sha));
+	return boost::algorithm::hex(std::string(std::begin(sha), std::end(sha)));
 }
 
 #else /* PS_USE_BCRYPT_WIN */
