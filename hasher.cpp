@@ -10,6 +10,21 @@
 
 #include <hasher.hpp>
 
+#ifndef PS_USE_BCRYPT_WIN
+
+#include <ext/picosha2.h>
+
+ps_sha_t
+_fname_checksum(const boost::filesystem::path &file)
+{
+	unsigned char sha[picosha2::k_digest_size] = {};
+	std::ifstream ifst = boost::filesystem::ifstream(file, std::ios_base::in | std::ios_base::binary);
+	picosha2::hash256(ifst, std::begin(sha), std::end(sha));
+	return std::string(std::begin(sha), std::end(sha));
+}
+
+#else /* PS_USE_BCRYPT_WIN */
+
 // http://kirkshoop.blogspot.com/2011/09/ntstatus.html
 #define WIN32_NO_STATUS
 #include <windows.h>
@@ -19,16 +34,6 @@
 #include <bcrypt.h>
 
 using ps_crypt_t = std::tuple<std::shared_ptr<BCRYPT_ALG_HANDLE>, std::shared_ptr<BCRYPT_HASH_HANDLE>, std::shared_ptr<unsigned char>, std::shared_ptr<unsigned char>, size_t>;
-
-//inline ps_sha_t
-//[[deprecated]]
-//_fname_checksum_(const boost::filesystem::path &file)
-//{
-//	unsigned char sha[picosha2::k_digest_size] = {};
-//	std::ifstream ifst = boost::filesystem::ifstream(file, std::ios_base::in | std::ios_base::binary);
-//	picosha2::hash256(ifst, std::begin(sha), std::end(sha));
-//	return std::string(std::begin(sha), std::end(sha));
-//}
 
 inline void
 _sp_del_bcryptalghandle(BCRYPT_ALG_HANDLE *p)
@@ -120,3 +125,5 @@ _fname_checksum(const boost::filesystem::path &file)
 {
 	return boost::algorithm::hex(_fname_checksum_bin(file));
 }
+
+#endif /* PS_USE_BCRYPT_WIN */
