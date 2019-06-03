@@ -65,7 +65,7 @@ pipeline {
 								dir("sta2") {
 									deleteDir()
 									sh 'cp --target-directory=. ../bld2/test0'
-									sh label: '', script: 'test0 --output_format=XML --log_level=test_suite --report_level=no --result_code=no > test0.xml'
+									sh label: '', script: './test0 --output_format=XML --log_level=test_suite --report_level=no --result_code=no > test0.xml'
 								}
 							}
 							post {
